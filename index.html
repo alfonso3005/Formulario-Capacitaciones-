@@ -333,7 +333,14 @@ document.getElementById('enviar').addEventListener('click', async () => {
           title: asunto,
           text: cuerpoMensaje
         });
-        mostrar(`🙏 ¡Muchas gracias! Ya copiamos <b>${CORREO_DESTINO}</b> — si el campo "Para" no se llenó solo, mantenlo presionado y elige <b>Pegar</b>.`, 'ok');
+        mostrar(`
+          <div style="font-size:1rem;margin-bottom:8px;">🙏 <b>¡Ya casi terminas!</b> Se abrió tu correo con el PDF adjunto. Solo falta:</div>
+          <ol style="margin:0 0 6px 20px;padding:0;">
+            <li style="margin-bottom:4px;">Haz clic en el campo <b>"Para"</b> (destinatario).</li>
+            <li style="margin-bottom:4px;">Presiona <b>Ctrl+V</b> para pegar el correo (ya lo copiamos: <b>${CORREO_DESTINO}</b>).</li>
+            <li>Presiona <b>Enviar</b>.</li>
+          </ol>
+        `, 'ok');
         return;
       } catch (err) {
         if (err.name === 'AbortError') {
