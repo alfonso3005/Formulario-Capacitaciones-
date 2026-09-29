@@ -171,7 +171,7 @@
   </div>
 
   <p style="text-align:center;font-size:.85rem;color:var(--gris);margin:0 0 10px 0;">
-    Al elegir tu app de correo, envíalo a: <b>abenavides@mibsac.com</b>
+    Se enviará a: <b>abenavides@mibsac.com</b>
   </p>
   <button id="enviar">Generar y enviar encuesta</button>
   <div id="estado"></div>
@@ -179,6 +179,8 @@
 </main>
 
 <script>
+const CORREO_DESTINO = 'abenavides@mibsac.com';
+
 const PREGUNTAS = [
   "¿Cómo calificarías la duración y frecuencia del curso?",
   "¿En qué medida la modalidad virtual/presencial del curso se adapta a tus necesidades de capacitación?",
@@ -195,7 +197,6 @@ const OPCIONES = [
   "Muy insatisfactoria"
 ];
 
-// Construir las 6 preguntas dinámicamente
 const cont = document.getElementById('preguntas');
 cont.innerHTML = '<h2>Tus respuestas</h2>';
 PREGUNTAS.forEach((texto, qi) => {
@@ -218,7 +219,6 @@ PREGUNTAS.forEach((texto, qi) => {
   cont.appendChild(div);
 });
 
-// --- Lienzo de firma ---
 const canvas = document.getElementById('firma');
 const ctx = canvas.getContext('2d');
 ctx.lineWidth = 2.2;
@@ -250,35 +250,10 @@ document.getElementById('limpiarFirma').onclick = () => {
   firmado = false;
 };
 
-// --- Envío ---
 const estado = document.getElementById('estado');
 function mostrar(msg, tipo){
   estado.className = tipo;
   estado.innerHTML = msg;
-}
-
-function cajaCopiable(etiqueta, texto){
-  const id = 'copiar_' + Math.random().toString(36).slice(2);
-  return `
-    <div style="margin-top:10px;text-align:left;">
-      <div style="font-size:.8rem;font-weight:600;margin-bottom:3px;">${etiqueta}</div>
-      <div style="display:flex;gap:6px;">
-        <input type="text" id="${id}" readonly value="${texto.replace(/"/g,'&quot;').replace(/\n/g,' ')}"
-          style="flex:1;padding:8px;border:1px solid var(--borde);border-radius:6px;font-size:.85rem;background:#fff;">
-        <button type="button" onclick="
-          const el=document.getElementById('${id}');
-          el.select();
-          navigator.clipboard ? navigator.clipboard.writeText(el.value) : document.execCommand('copy');
-          this.textContent='✔️';
-          setTimeout(()=>this.textContent='Copiar',1200);
-        " style="padding:8px 12px;border:none;border-radius:6px;background:var(--azul2);color:#fff;font-size:.8rem;">Copiar</button>
-      </div>
-    </div>`;
-}
-
-function mostrarConCopiar(msg, asuntoTxt, cuerpoTxt){
-  estado.className = 'ok';
-  estado.innerHTML = msg + cajaCopiable('Asunto', asuntoTxt) + cajaCopiable('Mensaje', cuerpoTxt);
 }
 
 document.getElementById('enviar').addEventListener('click', async () => {
@@ -326,7 +301,6 @@ document.getElementById('enviar').addEventListener('click', async () => {
       }
     }
 
-    // Incrustar la firma dibujada
     const firmaPngBytes = await fetch(canvas.toDataURL('image/png')).then(r => r.arrayBuffer());
     const firmaImg = await pdfDoc.embedPng(firmaPngBytes);
     const pagina2 = pdfDoc.getPages()[1];
@@ -339,32 +313,40 @@ document.getElementById('enviar').addEventListener('click', async () => {
     const blob = new Blob([pdfBytesFinal], { type: 'application/pdf' });
     const archivoPDF = new File([blob], nombreArchivo, { type: 'application/pdf' });
 
+    // Mismas variables usadas en LOS DOS caminos de abajo, para que el
+    // texto sea siempre idéntico sin importar cuál se termine usando.
     const asunto = `FORM-DHO-080 - ${curso} - ${nombre}`;
-
-    // Camino 1 (preferido, sobre todo en celular): menú nativo de "Compartir"
-    // con el PDF YA ADJUNTO — la persona solo elige su app de correo.
     const cuerpoMensaje = 'Adjunto mi encuesta de satisfacción completa y firmada.\nMuchas gracias';
 
+    // Camino 1 (preferido, sobre todo en celular): menú nativo de "Compartir"
+    // con el PDF YA ADJUNTO. Antes de abrirlo, copiamos el destinatario al
+    // portapapeles — el menú de compartir NUNCA puede llenar el campo "Para"
+    // (esa función no existe en ningún navegador), así que esto es lo más
+    // cercano a automático que se puede lograr para ese dato específico.
     if (navigator.canShare && navigator.canShare({ files: [archivoPDF] })) {
       try {
+        if (navigator.clipboard) {
+          try { await navigator.clipboard.writeText(CORREO_DESTINO); } catch(e) {}
+        }
         await navigator.share({
           files: [archivoPDF],
           title: asunto,
           text: cuerpoMensaje
         });
-        mostrar('🙏 ¡Muchas gracias por completar la encuesta!', 'ok');
+        mostrar(`🙏 ¡Muchas gracias! Ya copiamos <b>${CORREO_DESTINO}</b> — si el campo "Para" no se llenó solo, mantenlo presionado y elige <b>Pegar</b>.`, 'ok');
         return;
       } catch (err) {
         if (err.name === 'AbortError') {
-          // La persona cerró el menú de compartir sin elegir nada: no es un error real.
           mostrar('No se completó el envío. Si quieres, presiona el botón de nuevo para intentarlo otra vez.', 'error');
           return;
         }
-        // Si falla por otra razón, sigue al camino 2 (respaldo) más abajo.
       }
     }
 
-    // Camino 2 (respaldo, ej. computadoras sin menú de compartir): descarga + abrir correo.
+    // Camino 2 (respaldo: computadoras sin menú de compartir, o si el camino 1
+    // falló). Aquí SÍ se garantiza destinatario + asunto + cuerpo, porque
+    // mailto: los admite siempre — lo único que no puede es adjuntar el PDF,
+    // por eso se descarga aparte y se pide adjuntarlo a mano.
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = nombreArchivo;
@@ -374,9 +356,9 @@ document.getElementById('enviar').addEventListener('click', async () => {
 
     const asuntoURL = encodeURIComponent(asunto);
     const cuerpoURL = encodeURIComponent(cuerpoMensaje);
-    const mailtoLink = `mailto:abenavides@mibsac.com?subject=${asuntoURL}&body=${cuerpoURL}`;
+    const mailtoLink = `mailto:${CORREO_DESTINO}?subject=${asuntoURL}&body=${cuerpoURL}`;
 
-    mostrar('🙏 ¡Muchas gracias! Tu PDF ya se descargó — presiona el botón de abajo, adjúntalo y dale enviar.', 'ok');
+    mostrar(`🙏 ¡Muchas gracias! Tu PDF (<b>${nombreArchivo}</b>) ya se descargó. Presiona el botón de abajo — el destinatario, asunto y mensaje ya vienen listos — y solo adjunta ese archivo antes de enviar.`, 'ok');
 
     const botonCorreo = document.createElement('button');
     botonCorreo.textContent = '📧 Ya descargué mi PDF — abrir correo para enviarlo';
