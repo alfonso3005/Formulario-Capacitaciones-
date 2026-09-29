@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Encuesta de satisfacción de la capacitación — FORM-DHO-080</title>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+  :root{
+    --azul:#1f4e79;
+    --azul2:#2e75b6;
+    --gris:#555;
+    --borde:#d9dde2;
+    --fondo:#f4f6f8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:Segoe UI, Arial, sans-serif;
+    background:var(--fondo);
+    margin:0;
+    padding:0 0 60px 0;
+    color:#222;
+  }
+  header{
+    background:#fff;
+    border-bottom:3px solid var(--azul2);
+    padding:18px 20px;
+    text-align:center;
+  }
+  header h1{
+    font-size:1.25rem;
+    color:var(--azul);
+    margin:0 0 4px 0;
+  }
+  header p{
+    margin:0;
+    color:var(--gris);
+    font-size:.85rem;
+  }
+  main{
+    max-width:640px;
+    margin:20px auto;
+    padding:0 16px;
+  }
+  .card{
+    background:#fff;
+    border:1px solid var(--borde);
+    border-radius:10px;
+    padding:20px;
+    margin-bottom:16px;
+  }
+  .card h2{
+    font-size:1rem;
+    color:var(--azul);
+    margin:0 0 14px 0;
+  }
+  label.field{
+    display:block;
+    font-size:.9rem;
+    font-weight:600;
+    margin:10px 0 4px 0;
+  }
+  input[type=text]{
+    width:100%;
+    padding:10px;
+    border:1px solid var(--borde);
+    border-radius:6px;
+    font-size:1rem;
+  }
+  .pregunta{
+    margin-bottom:6px;
+    font-weight:600;
+    font-size:.95rem;
+  }
+  .opciones{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    margin-bottom:4px;
+  }
+  .opciones label{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:.9rem;
+    font-weight:400;
+    padding:6px 8px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .opciones label:hover{background:#f0f4f8;}
+  .opciones input{transform:scale(1.15);}
+  canvas#firma{
+    border:1px dashed var(--azul2);
+    border-radius:8px;
+    width:100%;
+    height:160px;
+    touch-action:none;
+    background:#fafcff;
+  }
+  .firma-botones{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:6px;
+  }
+  .firma-botones button{
+    background:none;
+    border:none;
+    color:var(--azul2);
+    font-size:.85rem;
+    cursor:pointer;
+    text-decoration:underline;
+  }
+  #enviar{
+    width:100%;
+    padding:14px;
+    background:var(--azul);
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    font-size:1.05rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  #enviar:disabled{background:#9fb3c4;cursor:default;}
+  #estado{
+    margin-top:14px;
+    padding:14px;
+    border-radius:8px;
+    font-size:.9rem;
+    display:none;
+    line-height:1.5;
+  }
+  #estado.ok{display:block;background:#e8f5e9;border:1px solid #a5d6a7;color:#1b5e20;}
+  #estado.error{display:block;background:#fdecea;border:1px solid #f5b7b1;color:#7b241c;}
+  .privacidad{
+    font-size:.78rem;
+    color:var(--gris);
+    margin-top:8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Encuesta de satisfacción de la capacitación</h1>
+  <p>FORM-DHO-080 · Minera Bateas · UEA San Cristóbal</p>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>Tus datos</h2>
+    <label class="field">Apellidos y nombres</label>
+    <input type="text" id="nombre" autocomplete="name">
+    <label class="field">Curso</label>
+    <input type="text" id="curso">
+    <label class="field">Área</label>
+    <input type="text" id="area">
+  </div>
+
+  <div class="card" id="preguntas"></div>
+
+  <div class="card">
+    <h2>Firma de conformidad</h2>
+    <canvas id="firma" width="600" height="160"></canvas>
+    <div class="firma-botones">
+      <button type="button" id="limpiarFirma">Borrar y volver a firmar</button>
+    </div>
+    <p class="privacidad">Tu firma solo la ve el equipo de DHO y se guarda de forma privada — nadie más tiene acceso a ella.</p>
+  </div>
+
+  <button id="enviar">Generar y enviar encuesta</button>
+  <div id="estado"></div>
+
+</main>
+
+<script>
+const PREGUNTAS = [
+  "¿Cómo calificarías la duración y frecuencia del curso?",
+  "¿En qué medida la modalidad virtual/presencial del curso se adapta a tus necesidades de capacitación?",
+  "¿En qué grado consideras que el contenido aprendido, contribuyó a mejorar tu desempeño en tus funciones?",
+  "¿Cómo calificarías el desempeño del docente del curso?",
+  "¿Cuál es tu nivel de satisfacción general con el personal de soporte que organizó la realización del curso?",
+  "¿Las herramientas tecnológicas o material utilizado en el curso contribuyeron a una mejor experiencia de aprendizaje?"
+];
+const OPCIONES = [
+  "Muy satisfactoria",
+  "Satisfactoria",
+  "Ni satisfactoria ni insatisfactoria",
+  "Insatisfactoria",
+  "Muy insatisfactoria"
+];
+
+// Construir las 6 preguntas dinámicamente
+const cont = document.getElementById('preguntas');
+cont.innerHTML = '<h2>Tus respuestas</h2>';
+PREGUNTAS.forEach((texto, qi) => {
+  const qn = qi + 1;
+  const div = document.createElement('div');
+  div.style.marginBottom = '16px';
+  const p = document.createElement('div');
+  p.className = 'pregunta';
+  p.textContent = `${qn}. ${texto}`;
+  div.appendChild(p);
+  const opts = document.createElement('div');
+  opts.className = 'opciones';
+  OPCIONES.forEach((op, oi) => {
+    const id = `Q${qn}_${oi + 1}`;
+    const label = document.createElement('label');
+    label.innerHTML = `<input type="radio" name="Q${qn}" value="${oi + 1}"> ${op}`;
+    opts.appendChild(label);
+  });
+  div.appendChild(opts);
+  cont.appendChild(div);
+});
+
+// --- Lienzo de firma ---
+const canvas = document.getElementById('firma');
+const ctx = canvas.getContext('2d');
+ctx.lineWidth = 2.2;
+ctx.lineCap = 'round';
+ctx.strokeStyle = '#1a1a1a';
+let dibujando = false;
+let firmado = false;
+
+function pos(e){
+  const r = canvas.getBoundingClientRect();
+  const cx = canvas.width / r.width;
+  const cy = canvas.height / r.height;
+  const p = e.touches ? e.touches[0] : e;
+  return { x: (p.clientX - r.left) * cx, y: (p.clientY - r.top) * cy };
+}
+function iniciar(e){ dibujando = true; firmado = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+function mover(e){ if(!dibujando) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+function terminar(){ dibujando = false; }
+
+canvas.addEventListener('mousedown', iniciar);
+canvas.addEventListener('mousemove', mover);
+window.addEventListener('mouseup', terminar);
+canvas.addEventListener('touchstart', iniciar, {passive:false});
+canvas.addEventListener('touchmove', mover, {passive:false});
+canvas.addEventListener('touchend', terminar);
+
+document.getElementById('limpiarFirma').onclick = () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  firmado = false;
+};
+
+// --- Envío ---
+const estado = document.getElementById('estado');
+function mostrar(msg, tipo){
+  estado.className = tipo;
+  estado.innerHTML = msg;
+}
+
+document.getElementById('enviar').addEventListener('click', async () => {
+  const nombre = document.getElementById('nombre').value.trim();
+  const curso = document.getElementById('curso').value.trim();
+  const area = document.getElementById('area').value.trim();
+
+  if(!nombre || !curso || !area){
+    mostrar('Por favor completa tus apellidos y nombres, curso y área.', 'error');
+    return;
+  }
+  const respuestas = {};
+  for(let q = 1; q <= 6; q++){
+    const sel = document.querySelector(`input[name="Q${q}"]:checked`);
+    if(!sel){
+      mostrar(`Por favor responde la pregunta ${q}.`, 'error');
+      return;
+    }
+    respuestas[q] = sel.value;
+  }
+  if(!firmado){
+    mostrar('Por favor firma en el recuadro antes de enviar.', 'error');
+    return;
+  }
+
+  const boton = document.getElementById('enviar');
+  boton.disabled = true;
+  boton.textContent = 'Generando PDF...';
+
+  try{
+    const { PDFDocument } = PDFLib;
+    const bytes = await fetch('formulario.pdf').then(r => r.arrayBuffer());
+    const pdfDoc = await PDFDocument.load(bytes);
+    const form = pdfDoc.getForm();
+
+    form.getTextField('NombreCompleto').setText(nombre);
+    form.getTextField('Curso').setText(curso);
+    form.getTextField('Area').setText(area);
+
+    for(let q = 1; q <= 6; q++){
+      const elegida = respuestas[q];
+      for(let o = 1; o <= 5; o++){
+        const cb = form.getCheckBox(`Q${q}_${o}`);
+        if(String(o) === elegida) cb.check(); else cb.uncheck();
+      }
+    }
+
+    // Incrustar la firma dibujada
+    const firmaPngBytes = await fetch(canvas.toDataURL('image/png')).then(r => r.arrayBuffer());
+    const firmaImg = await pdfDoc.embedPng(firmaPngBytes);
+    const pagina2 = pdfDoc.getPages()[1];
+    pagina2.drawImage(firmaImg, { x: 360, y: 629, width: 150, height: 33 });
+
+    form.flatten();
+
+    const pdfBytesFinal = await pdfDoc.save();
+    const blob = new Blob([pdfBytesFinal], { type: 'application/pdf' });
+    const nombreArchivo = `FORM-DHO-080_${curso}_${nombre}.pdf`.replace(/\s+/g, '_');
+
+    // Descargar el PDF ya lleno y firmado
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    // Abrir el correo ya direccionado
+    const asunto = encodeURIComponent(`FORM-DHO-080 - ${curso} - ${nombre}`);
+    const cuerpo = encodeURIComponent('Adjunto mi encuesta de satisfacción completada y firmada.');
+    setTimeout(() => {
+      window.location.href = `mailto:abenavides@mibsac.com?subject=${asunto}&body=${cuerpo}`;
+    }, 400);
+
+    mostrar(`✅ Tu PDF (<b>${nombreArchivo}</b>) se descargó. Se va a abrir tu correo con el destinatario y asunto listos — solo <b>adjunta el archivo que se acaba de descargar</b> y presiona enviar.`, 'ok');
+  }catch(err){
+    console.error(err);
+    mostrar('Ocurrió un error al generar el PDF. Por favor intenta de nuevo.', 'error');
+  }finally{
+    boton.disabled = false;
+    boton.textContent = 'Generar y enviar encuesta';
+  }
+});
+</script>
+</body>
+</html>
