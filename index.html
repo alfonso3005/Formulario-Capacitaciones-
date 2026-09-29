@@ -308,10 +308,34 @@ document.getElementById('enviar').addEventListener('click', async () => {
     form.flatten();
 
     const pdfBytesFinal = await pdfDoc.save();
-    const blob = new Blob([pdfBytesFinal], { type: 'application/pdf' });
     const nombreArchivo = `FORM-DHO-080_${curso}_${nombre}.pdf`.replace(/\s+/g, '_');
+    const blob = new Blob([pdfBytesFinal], { type: 'application/pdf' });
+    const archivoPDF = new File([blob], nombreArchivo, { type: 'application/pdf' });
 
-    // Descargar el PDF ya lleno y firmado
+    const asunto = `FORM-DHO-080 - ${curso} - ${nombre}`;
+
+    // Camino 1 (preferido, sobre todo en celular): menú nativo de "Compartir"
+    // con el PDF YA ADJUNTO — la persona solo elige su app de correo.
+    if (navigator.canShare && navigator.canShare({ files: [archivoPDF] })) {
+      try {
+        await navigator.share({
+          files: [archivoPDF],
+          title: asunto,
+          text: 'Encuesta de satisfacción completada y firmada. Por favor envíala por correo a abenavides@mibsac.com.'
+        });
+        mostrar(`✅ Elige tu app de correo en el menú que se abrió — el PDF ya viene adjunto, solo falta que le des enviar.`, 'ok');
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          // La persona cerró el menú de compartir sin elegir nada: no es un error real.
+          mostrar('No se completó el envío. Si quieres, presiona el botón de nuevo para intentarlo otra vez.', 'error');
+          return;
+        }
+        // Si falla por otra razón, sigue al camino 2 (respaldo) más abajo.
+      }
+    }
+
+    // Camino 2 (respaldo, ej. computadoras sin menú de compartir): descarga + abrir correo.
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = nombreArchivo;
@@ -319,14 +343,19 @@ document.getElementById('enviar').addEventListener('click', async () => {
     a.click();
     a.remove();
 
-    // Abrir el correo ya direccionado
-    const asunto = encodeURIComponent(`FORM-DHO-080 - ${curso} - ${nombre}`);
+    const asuntoURL = encodeURIComponent(asunto);
     const cuerpo = encodeURIComponent('Adjunto mi encuesta de satisfacción completada y firmada.');
-    setTimeout(() => {
-      window.location.href = `mailto:abenavides@mibsac.com?subject=${asunto}&body=${cuerpo}`;
-    }, 400);
+    const mailtoLink = `mailto:abenavides@mibsac.com?subject=${asuntoURL}&body=${cuerpo}`;
 
-    mostrar(`✅ Tu PDF (<b>${nombreArchivo}</b>) se descargó. Se va a abrir tu correo con el destinatario y asunto listos — solo <b>adjunta el archivo que se acaba de descargar</b> y presiona enviar.`, 'ok');
+    mostrar(`✅ Tu PDF (<b>${nombreArchivo}</b>) se descargó. Presiona el botón de abajo para abrir tu correo, y no olvides <b>adjuntar ese archivo</b> antes de enviar.`, 'ok');
+
+    const botonCorreo = document.createElement('button');
+    botonCorreo.textContent = '📧 Ya descargué mi PDF — abrir correo para enviarlo';
+    botonCorreo.style.marginTop = '10px';
+    botonCorreo.style.width = '100%';
+    botonCorreo.style.padding = '12px';
+    botonCorreo.onclick = () => { window.location.href = mailtoLink; };
+    estado.after(botonCorreo);
   }catch(err){
     console.error(err);
     mostrar('Ocurrió un error al generar el PDF. Por favor intenta de nuevo.', 'error');
