@@ -313,10 +313,10 @@ document.getElementById('enviar').addEventListener('click', async () => {
     const blob = new Blob([pdfBytesFinal], { type: 'application/pdf' });
     const archivoPDF = new File([blob], nombreArchivo, { type: 'application/pdf' });
 
-    // Mismas variables usadas en LOS DOS caminos de abajo, para que el
-    // texto sea siempre idéntico sin importar cuál se termine usando.
+    // Mismo asunto usado en LOS DOS caminos de abajo. Ya no se manda ningún
+    // cuerpo de texto — solo el título/asunto, que es lo único que vale la
+    // pena mandar (el cuerpo era lo que se mezclaba mal con la firma de Outlook).
     const asunto = `FORM-DHO-080 - ${curso} - ${nombre}`;
-    const cuerpoMensaje = 'Adjunto mi encuesta de satisfacción completa y firmada.\nMuchas gracias';
 
     // Camino 1 (preferido, sobre todo en celular): menú nativo de "Compartir"
     // con el PDF YA ADJUNTO. Antes de abrirlo, copiamos el destinatario al
@@ -330,8 +330,7 @@ document.getElementById('enviar').addEventListener('click', async () => {
         }
         await navigator.share({
           files: [archivoPDF],
-          title: asunto,
-          text: cuerpoMensaje
+          title: asunto
         });
         mostrar(`
           <div style="font-size:1rem;margin-bottom:8px;">🙏 <b>¡Ya casi terminas!</b> Se abrió tu correo con el PDF adjunto. Solo falta:</div>
@@ -362,10 +361,9 @@ document.getElementById('enviar').addEventListener('click', async () => {
     a.remove();
 
     const asuntoURL = encodeURIComponent(asunto);
-    const cuerpoURL = encodeURIComponent(cuerpoMensaje);
-    const mailtoLink = `mailto:${CORREO_DESTINO}?subject=${asuntoURL}&body=${cuerpoURL}`;
+    const mailtoLink = `mailto:${CORREO_DESTINO}?subject=${asuntoURL}`;
 
-    mostrar(`🙏 ¡Muchas gracias! Tu PDF (<b>${nombreArchivo}</b>) ya se descargó. Presiona el botón de abajo — el destinatario, asunto y mensaje ya vienen listos — y solo adjunta ese archivo antes de enviar.`, 'ok');
+    mostrar(`🙏 ¡Muchas gracias! Tu PDF (<b>${nombreArchivo}</b>) ya se descargó. Presiona el botón de abajo — el destinatario y asunto ya vienen listos — y solo adjunta ese archivo antes de enviar.`, 'ok');
 
     const botonCorreo = document.createElement('button');
     botonCorreo.textContent = '📧 Ya descargué mi PDF — abrir correo para enviarlo';
