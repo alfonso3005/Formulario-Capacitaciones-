@@ -348,9 +348,11 @@ document.getElementById('enviar').addEventListener('click', async () => {
     if (navigator.canShare && navigator.canShare({ files: [archivoPDF] })) {
       try {
         await navigator.share({
-          files: [archivoPDF]
+          files: [archivoPDF],
+          title: asunto,
+          text: cuerpoMensaje
         });
-        mostrarConCopiar('🙏 ¡Muchas gracias! Si el asunto o el mensaje no se llenaron solos en tu correo, cópialos de aquí y pégalos:', asunto, cuerpoMensaje);
+        mostrar('🙏 ¡Muchas gracias por completar la encuesta!', 'ok');
         return;
       } catch (err) {
         if (err.name === 'AbortError') {
@@ -374,7 +376,7 @@ document.getElementById('enviar').addEventListener('click', async () => {
     const cuerpoURL = encodeURIComponent(cuerpoMensaje);
     const mailtoLink = `mailto:abenavides@mibsac.com?subject=${asuntoURL}&body=${cuerpoURL}`;
 
-    mostrarConCopiar('🙏 ¡Muchas gracias! Tu PDF ya se descargó — presiona el botón de abajo, adjúntalo, y si el asunto o el mensaje no se llenaron solos, cópialos de aquí:', asunto, cuerpoMensaje);
+    mostrar('🙏 ¡Muchas gracias! Tu PDF ya se descargó — presiona el botón de abajo, adjúntalo y dale enviar.', 'ok');
 
     const botonCorreo = document.createElement('button');
     botonCorreo.textContent = '📧 Ya descargué mi PDF — abrir correo para enviarlo';
