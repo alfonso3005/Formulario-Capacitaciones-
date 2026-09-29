@@ -170,6 +170,9 @@
     <p class="privacidad">Tu firma solo la ve el equipo de DHO y se guarda de forma privada — nadie más tiene acceso a ella.</p>
   </div>
 
+  <p style="text-align:center;font-size:.85rem;color:var(--gris);margin:0 0 10px 0;">
+    Al elegir tu app de correo, envíalo a: <b>abenavides@mibsac.com</b>
+  </p>
   <button id="enviar">Generar y enviar encuesta</button>
   <div id="estado"></div>
 
@@ -316,14 +319,16 @@ document.getElementById('enviar').addEventListener('click', async () => {
 
     // Camino 1 (preferido, sobre todo en celular): menú nativo de "Compartir"
     // con el PDF YA ADJUNTO — la persona solo elige su app de correo.
+    const cuerpoMensaje = 'Adjunto mi encuesta de satisfacción completa y firmada.\nMuchas gracias';
+
     if (navigator.canShare && navigator.canShare({ files: [archivoPDF] })) {
       try {
         await navigator.share({
           files: [archivoPDF],
           title: asunto,
-          text: 'Encuesta de satisfacción completada y firmada. Por favor envíala por correo a abenavides@mibsac.com.'
+          text: cuerpoMensaje
         });
-        mostrar(`✅ Elige tu app de correo en el menú que se abrió — el PDF ya viene adjunto, solo falta que le des enviar.`, 'ok');
+        mostrar('🙏 ¡Muchas gracias por completar la encuesta!', 'ok');
         return;
       } catch (err) {
         if (err.name === 'AbortError') {
@@ -344,10 +349,10 @@ document.getElementById('enviar').addEventListener('click', async () => {
     a.remove();
 
     const asuntoURL = encodeURIComponent(asunto);
-    const cuerpo = encodeURIComponent('Adjunto mi encuesta de satisfacción completada y firmada.');
-    const mailtoLink = `mailto:abenavides@mibsac.com?subject=${asuntoURL}&body=${cuerpo}`;
+    const cuerpoURL = encodeURIComponent(cuerpoMensaje);
+    const mailtoLink = `mailto:abenavides@mibsac.com?subject=${asuntoURL}&body=${cuerpoURL}`;
 
-    mostrar(`✅ Tu PDF (<b>${nombreArchivo}</b>) se descargó. Presiona el botón de abajo para abrir tu correo, y no olvides <b>adjuntar ese archivo</b> antes de enviar.`, 'ok');
+    mostrar(`🙏 ¡Muchas gracias! Tu PDF ya se descargó — presiona el botón de abajo, adjúntalo y dale enviar.`, 'ok');
 
     const botonCorreo = document.createElement('button');
     botonCorreo.textContent = '📧 Ya descargué mi PDF — abrir correo para enviarlo';
