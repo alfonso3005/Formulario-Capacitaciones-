@@ -171,7 +171,7 @@
   </div>
 
   <p style="text-align:center;font-size:.85rem;color:var(--gris);margin:0 0 10px 0;">
-    Se enviará a: <b>abenavides@mibsac.com</b>
+    Al enviar, tu encuesta se guarda automáticamente. No necesitas hacer nada más.
   </p>
   <button id="enviar">Generar y enviar encuesta</button>
   <div id="estado"></div>
@@ -179,7 +179,9 @@
 </main>
 
 <script>
-const CORREO_DESTINO = 'abenavides@mibsac.com';
+// Pega aquí la URL de "HTTP" del disparador "Cuando se recibe una solicitud HTTP"
+// de tu flujo de Power Automate (la que copiaste desde esa tarjeta).
+const POWER_AUTOMATE_URL = 'https://default1ac626ff5abf42f0a4b96cad276d2d.9a.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/20/workflows/dfcc22cd23584af49ca1965607fdd4d0/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=axaY0fgoMvE2-QasDvVuyBipAOq3CvEK7zLhIXJlfqM';
 
 const PREGUNTAS = [
   "¿Cómo calificarías la duración y frecuencia del curso?",
@@ -309,69 +311,32 @@ document.getElementById('enviar').addEventListener('click', async () => {
     form.flatten();
 
     const pdfBytesFinal = await pdfDoc.save();
-    const nombreArchivo = `FORM-DHO-080_${curso}_${nombre}.pdf`.replace(/\s+/g, '_');
-    const blob = new Blob([pdfBytesFinal], { type: 'application/pdf' });
-    const archivoPDF = new File([blob], nombreArchivo, { type: 'application/pdf' });
+    const hoy = new Date();
+    const fecha = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, '0')}${String(hoy.getDate()).padStart(2, '0')}`;
+    const nombreArchivo = `FORM-DHO-080_${curso}_${nombre}_${fecha}.pdf`.replace(/\s+/g, '_');
 
-    // Mismo asunto usado en LOS DOS caminos de abajo. Ya no se manda ningún
-    // cuerpo de texto — solo el título/asunto, que es lo único que vale la
-    // pena mandar (el cuerpo era lo que se mezclaba mal con la firma de Outlook).
-    const asunto = `FORM-DHO-080 - ${curso} - ${nombre}`;
+    // Convertir el PDF a base64 en trozos (evita errores con archivos grandes)
+    let binario = '';
+    const trozo = 0x8000;
+    for (let i = 0; i < pdfBytesFinal.length; i += trozo) {
+      binario += String.fromCharCode.apply(null, pdfBytesFinal.subarray(i, i + trozo));
+    }
+    const pdfBase64 = btoa(binario);
 
-    // Camino 1 (preferido, sobre todo en celular): menú nativo de "Compartir"
-    // con el PDF YA ADJUNTO. Antes de abrirlo, copiamos el destinatario al
-    // portapapeles — el menú de compartir NUNCA puede llenar el campo "Para"
-    // (esa función no existe en ningún navegador), así que esto es lo más
-    // cercano a automático que se puede lograr para ese dato específico.
-    if (navigator.canShare && navigator.canShare({ files: [archivoPDF] })) {
-      try {
-        if (navigator.clipboard) {
-          try { await navigator.clipboard.writeText(CORREO_DESTINO); } catch(e) {}
-        }
-        await navigator.share({
-          files: [archivoPDF],
-          title: asunto
-        });
-        mostrar(`
-          <div style="font-size:1rem;margin-bottom:8px;">🙏 <b>¡Ya casi terminas!</b> Se abrió tu correo con el PDF adjunto. Solo falta:</div>
-          <ol style="margin:0 0 6px 20px;padding:0;">
-            <li style="margin-bottom:4px;">Haz clic en el campo <b>"Para"</b> (destinatario).</li>
-            <li style="margin-bottom:4px;">Presiona <b>Ctrl+V</b> para pegar el correo (ya lo copiamos: <b>${CORREO_DESTINO}</b>).</li>
-            <li>Presiona <b>Enviar</b>.</li>
-          </ol>
-        `, 'ok');
-        return;
-      } catch (err) {
-        if (err.name === 'AbortError') {
-          mostrar('No se completó el envío. Si quieres, presiona el botón de nuevo para intentarlo otra vez.', 'error');
-          return;
-        }
-      }
+    boton.textContent = 'Guardando en SharePoint...';
+
+    const respuesta = await fetch(POWER_AUTOMATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, curso, area, pdfBase64 })
+    });
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok || resultado.result !== 'ok') {
+      throw new Error(resultado.message || 'No se pudo guardar en SharePoint.');
     }
 
-    // Camino 2 (respaldo: computadoras sin menú de compartir, o si el camino 1
-    // falló). Aquí SÍ se garantiza destinatario + asunto + cuerpo, porque
-    // mailto: los admite siempre — lo único que no puede es adjuntar el PDF,
-    // por eso se descarga aparte y se pide adjuntarlo a mano.
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = nombreArchivo;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    const asuntoURL = encodeURIComponent(asunto);
-    const mailtoLink = `mailto:${CORREO_DESTINO}?subject=${asuntoURL}`;
-
-    mostrar(`🙏 ¡Muchas gracias! Tu PDF (<b>${nombreArchivo}</b>) ya se descargó. Presiona el botón de abajo — el destinatario y asunto ya vienen listos — y solo adjunta ese archivo antes de enviar.`, 'ok');
-
-    const botonCorreo = document.createElement('button');
-    botonCorreo.textContent = '📧 Ya descargué mi PDF — abrir correo para enviarlo';
-    botonCorreo.style.marginTop = '10px';
-    botonCorreo.style.width = '100%';
-    botonCorreo.style.padding = '12px';
-    botonCorreo.onclick = () => { window.location.href = mailtoLink; };
-    estado.after(botonCorreo);
+    mostrar(`🙏 ¡Muchas gracias! Tu encuesta (<b>${resultado.nombreArchivo || nombreArchivo}</b>) ya quedó guardada. No necesitas hacer nada más.`, 'ok');
   }catch(err){
     console.error(err);
     mostrar('Ocurrió un error al generar el PDF. Por favor intenta de nuevo.', 'error');
